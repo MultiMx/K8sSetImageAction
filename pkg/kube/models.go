@@ -13,7 +13,7 @@ type Config struct {
 
 func (a Config) DeploymentUrl() string {
 	return fmt.Sprintf(
-		"https://%s/k8s/clusters/%s/apis/apps/v1/namespaces/%s/deployments/%s",
+		"%s/k8s/clusters/%s/apis/apps/v1/namespaces/%s/deployments/%s",
 		a.Backend,
 		a.Cluster,
 		a.Namespace,
