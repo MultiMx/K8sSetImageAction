@@ -1,5 +1,7 @@
 package kube
 
+import "fmt"
+
 type Config struct {
 	Backend     string `env:"BACKEND,required"`
 	Cluster     string `env:"CLUSTER"`
@@ -7,6 +9,16 @@ type Config struct {
 	Deployment  string `env:"DEPLOYMENT,required"`
 	Container   uint   `env:"CONTAINER"`
 	BearerToken string `env:"TOKEN,required"`
+}
+
+func (a Config) DeploymentUrl() string {
+	return fmt.Sprintf(
+		"https://%s/k8s/clusters/%s/apis/apps/v1/namespaces/%s/deployments/%s",
+		a.Backend,
+		a.Cluster,
+		a.Namespace,
+		a.Deployment,
+	)
 }
 
 type Request struct {
