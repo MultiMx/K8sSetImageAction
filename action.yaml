@@ -10,7 +10,7 @@ inputs:
     required: true
   cluster:
     description: 'Rancher Cluster'
-    required: true
+    required: false
   namespace:
     description: 'Rancher Namespace'
     required: true
