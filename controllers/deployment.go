@@ -18,7 +18,7 @@ func SetImage(api *kube.Kube) error {
 			return nil
 		}
 		counter++
-		log.Errorln("request redeploy failed: ", e)
+		log.Errorln("request set image api failed: ", e)
 		if counter >= 5 {
 			return errors.New("failed: maximum number of attempts reached")
 		}
