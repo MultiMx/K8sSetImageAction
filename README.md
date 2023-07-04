@@ -6,13 +6,14 @@
 
 ```yaml
 - name: Update Deployment
-  uses: MultiMx/K8sSetImageAction@v0.2
+  uses: MultiMx/K8sSetImageAction@v0.3
   with:
     backend: 'https://some.rancher.com'
     token: ${{ secrets.CATTLE_TOKEN }} # rancher api bearer token
     namespace: 'control'
     deployment: 'apicenter'
     image: image.url:version
+    type: daemonsets # optional, default deployments
     container: 1 # optional, container index number, default 0
     wait: true # optional, wait for deployment full available, default false
     cluster: some_cluster # optional, cluster name, default local
