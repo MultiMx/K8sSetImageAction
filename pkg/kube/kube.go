@@ -11,6 +11,9 @@ func New(conf *Config) *Kube {
 	if conf.Cluster == "" {
 		conf.Cluster = "local"
 	}
+	if conf.Type == "" {
+		conf.Type = "deployments"
+	}
 	return &Kube{
 		Conf: conf,
 	}

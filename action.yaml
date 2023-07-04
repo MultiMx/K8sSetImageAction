@@ -3,19 +3,22 @@ description: >
   Set Deployment Image
 inputs:
   backend:
-    description: 'Rancher Server'
+    description: 'Server Addr'
     required: true
   token:
-    description: 'Rancher Bearer Token'
+    description: 'Bearer Token'
     required: true
   cluster:
-    description: 'Rancher Cluster'
+    description: 'Cluster Name'
     required: false
   namespace:
-    description: 'Rancher Namespace'
+    description: 'Namespace'
     required: true
-  deployment:
-    description: 'Rancher Deployment'
+  type:
+    description: 'Type of Workload'
+    required: false
+  workload:
+    description: 'Workload Name'
     required: true
   container:
     description: 'Deployment Container Index'
