@@ -11,7 +11,7 @@
     backend: 'https://some.rancher.com'
     token: ${{ secrets.CATTLE_TOKEN }} # rancher api bearer token
     namespace: 'control'
-    deployment: 'apicenter'
+    workload: 'apicenter'
     image: image.url:version
     type: daemonsets # optional, default deployments
     container: 1 # optional, container index number, default 0
