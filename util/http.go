@@ -2,6 +2,7 @@ package util
 
 import (
 	"github.com/Mmx233/tool"
+	"net/http"
 	"time"
 )
 
@@ -11,9 +12,10 @@ func init() {
 	defaultTimeout := time.Second * 30
 
 	Http = tool.NewHttpTool(tool.GenHttpClient(&tool.HttpClientOptions{
-		Transport: tool.GenHttpTransport(&tool.HttpTransportOptions{
-			Timeout: defaultTimeout,
-		}),
+		Transport: &http.Transport{
+			TLSHandshakeTimeout: defaultTimeout,
+			Proxy:               http.ProxyFromEnvironment,
+		},
 		Timeout: defaultTimeout,
 	}))
 }
