@@ -2,6 +2,7 @@
   "name": "k8s-set-image-action",
   "version": "1.0.0",
   "main": "index.ts",
+  "type": "module",
   "repository": "https://github.com/MultiMx/K8sSetImageAction.git",
   "author": "Mmx233 <36563672+Mmx233@users.noreply.github.com>",
   "license": "MIT",

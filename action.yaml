@@ -24,15 +24,15 @@ inputs:
     description: "Workload Name"
     required: true
 
-  template:
-    description: "Template for Patching"
+  body:
+    description: "Body for Patching Operation"
     required: false
     default: ""
 
   container:
-    description: "Deployment Container Name"
+    description: "Container Index Number"
     required: false
-    default: "container-0"
+    default: "0"
   image:
     description: "Target Image"
     required: false

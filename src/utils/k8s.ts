@@ -1,42 +1,34 @@
 import * as k8s from "@kubernetes/client-node";
 
-export const generatePatchAppsTemplate = (
-  container: string,
+export const bodyPatchAppsImage = (
+  container: number,
   image: string,
 ): string => {
-  return JSON.stringify({
-    spec: {
-      template: {
-        spec: {
-          containers: [{ name: container, image: image }],
-        },
-      },
+  return JSON.stringify([
+    {
+      op: "replace",
+      path: `/spec/template/spec/containers/${container}/image`,
+      value: image,
     },
-  });
+  ]);
 };
 
-export const generatePatchBatchTemplate = (
-  container: string,
+export const bodyPatchJobImage = (
+  container: number,
   image: string,
 ): string => {
-  return JSON.stringify({
-    spec: {
-      jobTemplate: {
-        spec: {
-          template: {
-            spec: {
-              containers: [{ name: container, image: image }],
-            },
-          },
-        },
-      },
+  return JSON.stringify([
+    {
+      op: "replace",
+      path: `/spec/jobTemplate/spec/template/spec/containers/${container}/image`,
+      value: image,
     },
-  });
+  ]);
 };
 
 export interface WorkloadStrategy {
   patch: (body: string) => Promise<any>;
-  patchImageTemplate: (container: string, image: string) => string;
+  getPatchImageBody: (container: number, image: string) => string;
   isAvailable: () => Promise<boolean>;
 }
 
@@ -57,7 +49,7 @@ export const getStrategy = (
           name,
           body,
         }),
-      patchImageTemplate: generatePatchAppsTemplate,
+      getPatchImageBody: bodyPatchAppsImage,
       isAvailable: async () =>
         await appsApi
           .readNamespacedDeployment({
@@ -73,7 +65,7 @@ export const getStrategy = (
           name,
           body,
         }),
-      patchImageTemplate: generatePatchAppsTemplate,
+      getPatchImageBody: bodyPatchAppsImage,
       isAvailable: async () =>
         await appsApi
           .readNamespacedStatefulSet({
@@ -89,7 +81,7 @@ export const getStrategy = (
           name,
           body,
         }),
-      patchImageTemplate: generatePatchAppsTemplate,
+      getPatchImageBody: bodyPatchAppsImage,
       isAvailable: async () =>
         await appsApi
           .readNamespacedDaemonSet({
@@ -107,7 +99,7 @@ export const getStrategy = (
           name,
           body,
         }),
-      patchImageTemplate: generatePatchBatchTemplate,
+      getPatchImageBody: bodyPatchJobImage,
       isAvailable: () => {
         throw new Error("Waiting for CronJob not supported");
       },

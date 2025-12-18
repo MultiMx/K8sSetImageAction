@@ -14,9 +14,13 @@ async function main() {
     const controller = core.getInput("controller").toLowerCase();
     const namespace = core.getInput("namespace", { required: true });
     const workload = core.getInput("workload", { required: true });
-    const templateInput = core.getInput("templateInput");
+    const bodyInput = core.getInput("body");
 
-    const container = core.getInput("container");
+    const container = parseInt(core.getInput("container"));
+    if (isNaN(container)) {
+      core.setFailed(`Invalid container index ${core.getInput("container")}`);
+      return;
+    }
     const image = core.getInput("image");
 
     const maxPatchRetry = parseInt(core.getInput("maxPatchRetry")) ?? 5;
@@ -29,7 +33,7 @@ async function main() {
       return;
     }
 
-    if (!templateInput && (!container || !image)) {
+    if (!bodyInput && (!container || !image)) {
       core.setFailed("Must provide template or container and image");
       return;
     }
@@ -59,13 +63,13 @@ async function main() {
     }
 
     try {
-      const template =
-        templateInput || strategy.patchImageTemplate(container, image);
+      const body =
+        bodyInput || strategy.getPatchImageBody(container, image);
 
       let count = 0;
       while (true) {
         try {
-          await strategy.patch(template);
+          await strategy.patch(body);
           break;
         } catch (err) {
           if (count < maxPatchRetry) {
