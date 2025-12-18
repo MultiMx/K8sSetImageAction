@@ -1,34 +1,71 @@
 name: Rancher Set Deployment Image Action
 description: >
   Set Deployment Image
+
 inputs:
-  backend:
-    description: 'Server Addr'
-    required: true
+  server:
+    description: "Server Addr"
+    required: false
+    default: ""
+  skipTLSVerify:
+    description: "Skip TLS Verify"
+    required: false
+    default: "false"
   token:
-    description: 'Bearer Token'
-    required: true
-  cluster:
-    description: 'Cluster Name'
+    description: "Bearer Token"
     required: false
+    default: ""
+  kubeconfigFile:
+    description: "Path of kubeconfig file"
+    required: false
+    default: ""
+  kubeconfigInline:
+    description: "Inline content of kubeconfig"
+    required: false
+    default: ""
+
+  controller:
+    description: "Controller of Workload"
+    required: false
+    default: "deployment"
   namespace:
-    description: 'Namespace'
+    description: "Namespace"
     required: true
-  type:
-    description: 'Type of Workload'
-    required: false
   workload:
-    description: 'Workload Name'
+    description: "Workload Name"
     required: true
+
+  contentType:
+    description: "Content-Type of body"
+    required: false
+    default: "application/strategic-merge-patch+json"
+  body:
+    description: "Body for Merge Patch"
+    required: false
+    default: ""
+
   container:
-    description: 'Deployment Container Index'
+    description: "Container Name"
     required: false
+    default: "container-0"
   image:
-    description: 'Target Image'
-    required: true
-  wait:
-    description: 'Waiting workload available'
+    description: "Target Image"
     required: false
+    default: ""
+
+  maxPatchRetry:
+    description: "Max Retry Times for Patch"
+    required: false
+    default: "5"
+  wait:
+    description: "Waiting Workload Ready"
+    required: false
+    default: "false"
+  maxWaitDuration:
+    description: "Max Wait Duration"
+    required: false
+    default: "5m"
+
 runs:
-  using: 'docker'
-  image: 'Dockerfile'
+  using: node20
+  main: dist/index.js

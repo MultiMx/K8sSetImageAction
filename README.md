@@ -1,20 +1,77 @@
 # K8sSetImageAction
 
-更新 Rancher Deployment 镜像地址 Action
+Update Rancher Deployment Image Address Action
 
-## 使用
+## Usage
+
+### Patch Deployment with Token
 
 ```yaml
-- name: Update Deployment
-  uses: MultiMx/K8sSetImageAction@v0.6
+- name: Update Workload
+  uses: MultiMx/K8sSetImageAction@v0.7
   with:
-    backend: 'https://some.rancher.com'
-    token: ${{ secrets.CATTLE_TOKEN }} # rancher api bearer token
-    namespace: 'control'
-    workload: 'apicenter'
-    image: image.url:version
-    type: daemonsets # optional, default deployments
-    container: 1 # optional, container index number, default 0
-    wait: true # optional, wait for deployment full available, default false
-    cluster: some_cluster # optional, cluster name, default local
+    server: "https://my-cluster"
+    token: "token-aaa:bbb"
+    namespace: "default"
+    workload: "ingress-nginx-controller"
+    image: "registry.example/repo:tag"
 ```
+
+### Patch and Wait Workload Ready
+
+```yaml
+- name: Update Workload
+  uses: MultiMx/K8sSetImageAction@v0.7
+  with:
+    server: "https://my-cluster"
+    token: "token-aaa:bbb"
+    namespace: "default"
+    workload: "ingress-nginx-controller"
+    image: "registry.example/repo:tag"
+    wait: true
+    maxWaitDuration: "10m" # optional, default 5m
+```
+
+### Parameters
+
+Options further down the list have higher priority. For example, if Option B is set, Option A will be ignored.
+
+#### Credentials Option A: Server & Token
+
+| Parameter       | Required | Default | Description               |
+| :-------------- | :------: | :------ | ------------------------- |
+| `server`        |    O     |         | Kubeconfig cluster server |
+| `skipTLSVerify` |    X     | `false` | Skip server TLS verify    |
+| `token`         |    O     |         | Kubeconfig user token     |
+
+#### Credentials Option B / C: Kubeconfig
+
+| Parameter          | Required | Default | Description                            |
+| :----------------- | :------: | :------ | -------------------------------------- |
+| `kubeconfigFile`   |    X     |         | Option B. Path of kubeconfig file      |
+| `kubeconfigInline` |    X     |         | Option C. Inline content of kubeconfig |
+
+#### Workload
+
+| Parameter         | Required | Default      | Description                             |
+| :---------------- | :------: | :----------- | --------------------------------------- |
+| `controller`      |    X     | `deployment` | Controller of workload                  |
+| `namespace`       |    O     |              | Namespace of workload                   |
+| `workload`        |    O     |              | Name of workload                        |
+| `maxPatchRetry`   |    X     | `5`          | Max retry times for patch               |
+| `wait`            |    X     | `false`      | Wait until workload ready               |
+| `maxWaitDuration` |    X     | `5m`         | Max wait duration, will fail if timeout |
+
+#### Patch Option A: Generate Body
+
+| Parameter   | Required | Default       | Description              |
+| :---------- | :------: | :------------ | ------------------------ |
+| `container` |    X     | `container-0` | Name of container        |
+| `image`     |    O     |               | Target image field value |
+
+#### Patch Option B: Custom Body
+
+| Parameter     | Required | Default                                  | Description                            |
+| :------------ | :------: | :--------------------------------------- | -------------------------------------- |
+| `contentType` |    X     | `application/strategic-merge-patch+json` | Content-Type header of patch operation |
+| `body`        |    O     |                                          | JSON body of patch operation           |
