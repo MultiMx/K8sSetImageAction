@@ -29,7 +29,7 @@ export const bodyPatchJobImage = (container: string, image: string) => {
 };
 
 export interface WorkloadStrategy {
-  patch: (body: any) => Promise<any>;
+  patch: (contentType: string, body: any) => Promise<any>;
   getPatchImageBody: (container: string, image: string) => any;
   isAvailable: () => Promise<boolean>;
 }
@@ -45,14 +45,14 @@ export const getStrategy = (
 
   const strategies: Record<string, WorkloadStrategy> = {
     deployment: {
-      patch: async (body: any) =>
+      patch: async (contentType, body) =>
         appsApi.patchNamespacedDeployment(
           {
             namespace,
             name,
             body,
           },
-          k8s.setHeaderOptions("Content-Type", k8s.PatchStrategy.MergePatch),
+          k8s.setHeaderOptions("Content-Type", contentType),
         ),
       getPatchImageBody: bodyPatchAppsImage,
       isAvailable: async () =>
@@ -64,14 +64,14 @@ export const getStrategy = (
           .then((b) => b.status?.availableReplicas === b.spec?.replicas),
     },
     statefulset: {
-      patch: async (body: any) =>
+      patch: async (contentType, body) =>
         appsApi.patchNamespacedStatefulSet(
           {
             namespace,
             name,
             body,
           },
-          k8s.setHeaderOptions("Content-Type", k8s.PatchStrategy.MergePatch),
+          k8s.setHeaderOptions("Content-Type", contentType),
         ),
       getPatchImageBody: bodyPatchAppsImage,
       isAvailable: async () =>
@@ -83,14 +83,14 @@ export const getStrategy = (
           .then((b) => b.status?.readyReplicas === b.spec?.replicas),
     },
     daemonset: {
-      patch: async (body: any) =>
+      patch: async (contentType, body) =>
         appsApi.patchNamespacedDaemonSet(
           {
             namespace,
             name,
             body,
           },
-          k8s.setHeaderOptions("Content-Type", k8s.PatchStrategy.MergePatch),
+          k8s.setHeaderOptions("Content-Type", contentType),
         ),
       getPatchImageBody: bodyPatchAppsImage,
       isAvailable: async () =>
@@ -104,14 +104,14 @@ export const getStrategy = (
           ),
     },
     cronjob: {
-      patch: async (body: any) =>
+      patch: async (contentType, body) =>
         batchApi.patchNamespacedCronJob(
           {
             namespace,
             name,
             body,
           },
-          k8s.setHeaderOptions("Content-Type", k8s.PatchStrategy.MergePatch),
+          k8s.setHeaderOptions("Content-Type", contentType),
         ),
       getPatchImageBody: bodyPatchJobImage,
       isAvailable: () => {

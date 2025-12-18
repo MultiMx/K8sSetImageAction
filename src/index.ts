@@ -14,6 +14,8 @@ async function main() {
     const controller = core.getInput("controller").toLowerCase();
     const namespace = core.getInput("namespace", { required: true });
     const workload = core.getInput("workload", { required: true });
+
+    const contentTypeInput = core.getInput("contentType");
     const bodyInput = core.getInput("body");
 
     const container = core.getInput("container");
@@ -58,15 +60,24 @@ async function main() {
     }
 
     try {
-      const body = bodyInput
-        ? JSON.parse(bodyInput)
-        : strategy.getPatchImageBody(container, image);
-      core.debug(`Patch body: ${JSON.stringify(body)}`);
+      const [contentType, body] = bodyInput
+        ? [contentTypeInput, JSON.parse(bodyInput)]
+        : [
+            k8s.PatchStrategy.StrategicMergePatch,
+            strategy.getPatchImageBody(container, image),
+          ];
+      if (!contentType) {
+        core.setFailed("Must provide contentType while body is non-empty");
+        return;
+      }
+      core.debug(
+        `Content-Type: ${contentType}, Patch body: ${JSON.stringify(body)}`,
+      );
 
       let count = 0;
       while (true) {
         try {
-          await strategy.patch(body);
+          await strategy.patch(contentType, body);
           break;
         } catch (err) {
           if (count < maxPatchRetry) {
@@ -87,7 +98,7 @@ async function main() {
       return;
     }
 
-    core.info(`Image updated successfully for workload: ${workload}`);
+    core.info(`Image updated successfully`);
 
     if (wait === "true") {
       core.info(`Waiting for workload ${workload} to be available...`);

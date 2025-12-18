@@ -24,6 +24,10 @@ inputs:
     description: "Workload Name"
     required: true
 
+  contentType:
+    description: "Content-Type of body"
+    required: false
+    default: "application/strategic-merge-patch+json"
   body:
     description: "Body for Merge Patch"
     required: false
