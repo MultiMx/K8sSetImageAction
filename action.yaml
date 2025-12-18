@@ -1,6 +1,6 @@
-name: Rancher Set Deployment Image Action
+name: SetK8sImageAction
 description: >
-  Set Deployment Image
+  Set K8s Workload Image
 
 inputs:
   server:
