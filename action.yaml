@@ -1,6 +1,7 @@
 name: Rancher Set Deployment Image Action
 description: >
   Set Deployment Image
+
 inputs:
   backend:
     description: 'Server Addr'
@@ -29,6 +30,7 @@ inputs:
   wait:
     description: 'Waiting workload available'
     required: false
+
 runs:
-  using: 'docker'
-  image: 'Dockerfile'
+  using: node20
+  main: dist/index.js

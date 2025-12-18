@@ -1,8 +1,8 @@
 # K8sSetImageAction
 
-更新 Rancher Deployment 镜像地址 Action
+Update Rancher Deployment Image Address Action
 
-## 使用
+## Usage
 
 ```yaml
 - name: Update Deployment
