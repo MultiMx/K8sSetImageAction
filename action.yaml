@@ -5,14 +5,25 @@ description: >
 inputs:
   server:
     description: "Server Addr"
-    required: true
+    required: false
+    default: ""
   skipTLSVerify:
     description: "Skip TLS Verify"
     required: false
     default: "false"
   token:
     description: "Bearer Token"
-    required: true
+    required: false
+    default: ""
+  kubeconfigFile:
+    description: "Path of kubeconfig file"
+    required: false
+    default: ""
+  kubeconfigInline:
+    description: "Inline content of kubeconfig"
+    required: false
+    default: ""
+
   controller:
     description: "Controller of Workload"
     required: false

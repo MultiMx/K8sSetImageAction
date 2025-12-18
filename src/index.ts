@@ -7,9 +7,11 @@ import { getStrategy } from "./utils/k8s";
 
 async function main() {
   try {
-    const server = core.getInput("server", { required: true });
+    const server = core.getInput("server");
     const skipTLSVerify = core.getInput("skipTLSVerify");
-    const token = core.getInput("token", { required: true });
+    const token = core.getInput("token");
+    const kubeconfigFile = core.getInput("kubeconfigFile");
+    const kubeconfigInline = core.getInput("kubeconfigInline");
 
     const controller = core.getInput("controller").toLowerCase();
     const namespace = core.getInput("namespace", { required: true });
@@ -25,14 +27,14 @@ async function main() {
     const wait = core.getInput("wait");
     const maxWaitDuration = core.getInput("maxWaitDuration");
 
-    const maxWaitMs: number | undefined = ms(maxWaitDuration as StringValue);
-    if (!maxWaitMs) {
-      core.setFailed(`Invalid maxWaitDuration ${maxWaitDuration}`);
+    if (!bodyInput && (!container || !image)) {
+      core.setFailed("Must provide container and image or body");
       return;
     }
 
-    if (!bodyInput && (!container || !image)) {
-      core.setFailed("Must provide container and image or body");
+    const maxWaitMs: number | undefined = ms(maxWaitDuration as StringValue);
+    if (!maxWaitMs) {
+      core.setFailed(`Invalid maxWaitDuration ${maxWaitDuration}`);
       return;
     }
 
@@ -41,17 +43,31 @@ async function main() {
     );
 
     const kc = new k8s.KubeConfig();
-    kc.loadFromClusterAndUser(
-      {
-        name: "server",
-        server: server,
-        skipTLSVerify: skipTLSVerify === "true",
-      },
-      {
-        name: "user",
-        token: token,
-      },
-    );
+    try {
+      if (!!kubeconfigInline) {
+        kc.loadFromString(kubeconfigInline);
+      } else if (!!kubeconfigFile) {
+        kc.loadFromFile(kubeconfigFile);
+      } else if (!server || !token) {
+        core.setFailed("Kubeconfig credential is required");
+        return;
+      } else {
+        kc.loadFromClusterAndUser(
+          {
+            name: "server",
+            server: server,
+            skipTLSVerify: skipTLSVerify === "true",
+          },
+          {
+            name: "user",
+            token: token,
+          },
+        );
+      }
+    } catch (err) {
+      core.setFailed(`Load kubeconfig failed: ${err}`);
+      return;
+    }
 
     const strategy = getStrategy(kc, controller, namespace, workload);
     if (!strategy) {
