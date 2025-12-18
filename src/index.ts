@@ -16,11 +16,7 @@ async function main() {
     const workload = core.getInput("workload", { required: true });
     const bodyInput = core.getInput("body");
 
-    const container = parseInt(core.getInput("container"));
-    if (isNaN(container)) {
-      core.setFailed(`Invalid container index ${core.getInput("container")}`);
-      return;
-    }
+    const container = core.getInput("container");
     const image = core.getInput("image");
 
     const maxPatchRetry = parseInt(core.getInput("maxPatchRetry")) ?? 5;
@@ -33,13 +29,13 @@ async function main() {
       return;
     }
 
-    if (!bodyInput && !image) {
+    if (!bodyInput && (!container || !image)) {
       core.setFailed("Must provide container and image or body");
       return;
     }
 
     core.info(
-      `Setting image for ${controller} workload: ${workload} in namespace: ${namespace}`,
+      `Setting image for ${controller} workload: ${workload} container: ${container} in namespace: ${namespace}`,
     );
 
     const kc = new k8s.KubeConfig();
@@ -62,8 +58,9 @@ async function main() {
     }
 
     try {
-      const body = bodyInput || strategy.getPatchImageBody(container, image);
-      core.debug(`Path body: ${body}`)
+      const body =
+        JSON.parse(bodyInput) || strategy.getPatchImageBody(container, image);
+      core.debug(`Patch body: ${JSON.stringify(body)}`);
 
       let count = 0;
       while (true) {
@@ -74,16 +71,18 @@ async function main() {
           if (count < maxPatchRetry) {
             core.error(`Patch workload failed: ${err}, retrying...`);
             count++;
+            core.debug(`count ${count}, maxPatchRetry ${maxPatchRetry}`);
           } else {
             core.setFailed(`Patch workload failed: ${err}`);
             return;
           }
         }
 
+        core.debug("sleep 1s");
         await new Promise((resolve) => setTimeout(resolve, 1000));
       }
     } catch (err) {
-      core.setFailed(`Generate template failed: ${err}`);
+      core.setFailed(`Generate patch body failed: ${err}`);
       return;
     }
 
@@ -104,6 +103,7 @@ async function main() {
               core.info("Workload is available");
               break;
             }
+            core.debug("sleep 5s");
             await new Promise((resolve) => setTimeout(resolve, 5000));
             core.info(`Waiting for workload ${workload} to be available...`);
           } catch (err) {}

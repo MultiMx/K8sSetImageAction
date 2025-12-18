@@ -25,21 +25,21 @@ inputs:
     required: true
 
   body:
-    description: "Body for Patching Operation"
+    description: "Body for Merge Patch"
     required: false
     default: ""
 
   container:
-    description: "Container Index Number"
+    description: "Container Name"
     required: false
-    default: "0"
+    default: "container-0"
   image:
     description: "Target Image"
     required: false
     default: ""
 
   maxPatchRetry:
-    description: "Max Retry Times for Patching"
+    description: "Max Retry Times for Patch"
     required: false
     default: "5"
   wait:

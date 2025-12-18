@@ -1,34 +1,36 @@
 import * as k8s from "@kubernetes/client-node";
 
-export const bodyPatchAppsImage = (
-  container: number,
-  image: string,
-): string => {
-  return JSON.stringify([
-    {
-      op: "replace",
-      path: `/spec/template/spec/containers/${container}/image`,
-      value: image,
+export const bodyPatchAppsImage = (container: string, image: string) => {
+  return {
+    spec: {
+      template: {
+        spec: {
+          containers: [{ name: container, image: image }],
+        },
+      },
     },
-  ]);
+  };
 };
 
-export const bodyPatchJobImage = (
-  container: number,
-  image: string,
-): string => {
-  return JSON.stringify([
-    {
-      op: "replace",
-      path: `/spec/jobTemplate/spec/template/spec/containers/${container}/image`,
-      value: image,
+export const bodyPatchJobImage = (container: string, image: string) => {
+  return {
+    spec: {
+      jobTemplate: {
+        spec: {
+          template: {
+            spec: {
+              containers: [{ name: container, image: image }],
+            },
+          },
+        },
+      },
     },
-  ]);
+  };
 };
 
 export interface WorkloadStrategy {
-  patch: (body: string) => Promise<any>;
-  getPatchImageBody: (container: number, image: string) => string;
+  patch: (body: any) => Promise<any>;
+  getPatchImageBody: (container: string, image: string) => any;
   isAvailable: () => Promise<boolean>;
 }
 
@@ -43,12 +45,15 @@ export const getStrategy = (
 
   const strategies: Record<string, WorkloadStrategy> = {
     deployment: {
-      patch: async (body: string) =>
-        appsApi.patchNamespacedDeployment({
-          namespace,
-          name,
-          body,
-        }),
+      patch: async (body: any) =>
+        appsApi.patchNamespacedDeployment(
+          {
+            namespace,
+            name,
+            body,
+          },
+          k8s.setHeaderOptions("Content-Type", k8s.PatchStrategy.MergePatch),
+        ),
       getPatchImageBody: bodyPatchAppsImage,
       isAvailable: async () =>
         await appsApi
@@ -59,12 +64,15 @@ export const getStrategy = (
           .then((b) => b.status?.availableReplicas === b.spec?.replicas),
     },
     statefulset: {
-      patch: async (body: string) =>
-        appsApi.patchNamespacedStatefulSet({
-          namespace,
-          name,
-          body,
-        }),
+      patch: async (body: any) =>
+        appsApi.patchNamespacedStatefulSet(
+          {
+            namespace,
+            name,
+            body,
+          },
+          k8s.setHeaderOptions("Content-Type", k8s.PatchStrategy.MergePatch),
+        ),
       getPatchImageBody: bodyPatchAppsImage,
       isAvailable: async () =>
         await appsApi
@@ -75,12 +83,15 @@ export const getStrategy = (
           .then((b) => b.status?.readyReplicas === b.spec?.replicas),
     },
     daemonset: {
-      patch: async (body: string) =>
-        appsApi.patchNamespacedDaemonSet({
-          namespace,
-          name,
-          body,
-        }),
+      patch: async (body: any) =>
+        appsApi.patchNamespacedDaemonSet(
+          {
+            namespace,
+            name,
+            body,
+          },
+          k8s.setHeaderOptions("Content-Type", k8s.PatchStrategy.MergePatch),
+        ),
       getPatchImageBody: bodyPatchAppsImage,
       isAvailable: async () =>
         await appsApi
@@ -93,12 +104,15 @@ export const getStrategy = (
           ),
     },
     cronjob: {
-      patch: async (body: string) =>
-        batchApi.patchNamespacedCronJob({
-          namespace,
-          name,
-          body,
-        }),
+      patch: async (body: any) =>
+        batchApi.patchNamespacedCronJob(
+          {
+            namespace,
+            name,
+            body,
+          },
+          k8s.setHeaderOptions("Content-Type", k8s.PatchStrategy.MergePatch),
+        ),
       getPatchImageBody: bodyPatchJobImage,
       isAvailable: () => {
         throw new Error("Waiting for CronJob not supported");
