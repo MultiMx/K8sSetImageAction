@@ -42,7 +42,6 @@ async function main() {
       `Setting image for ${controller} workload: ${workload} in namespace: ${namespace}`,
     );
 
-    // Kubernetes configuration
     const kc = new k8s.KubeConfig();
     kc.loadFromClusterAndUser(
       {
@@ -64,6 +63,7 @@ async function main() {
 
     try {
       const body = bodyInput || strategy.getPatchImageBody(container, image);
+      core.debug(`Path body: ${body}`)
 
       let count = 0;
       while (true) {
