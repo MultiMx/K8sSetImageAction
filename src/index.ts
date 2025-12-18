@@ -33,8 +33,8 @@ async function main() {
       return;
     }
 
-    if (!bodyInput && (!container || !image)) {
-      core.setFailed("Must provide template or container and image");
+    if (!bodyInput && !image) {
+      core.setFailed("Must provide container and image or body");
       return;
     }
 
@@ -63,8 +63,7 @@ async function main() {
     }
 
     try {
-      const body =
-        bodyInput || strategy.getPatchImageBody(container, image);
+      const body = bodyInput || strategy.getPatchImageBody(container, image);
 
       let count = 0;
       while (true) {
