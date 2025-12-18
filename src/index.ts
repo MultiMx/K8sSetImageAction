@@ -58,8 +58,9 @@ async function main() {
     }
 
     try {
-      const body =
-        JSON.parse(bodyInput) || strategy.getPatchImageBody(container, image);
+      const body = bodyInput
+        ? JSON.parse(bodyInput)
+        : strategy.getPatchImageBody(container, image);
       core.debug(`Patch body: ${JSON.stringify(body)}`);
 
       let count = 0;
