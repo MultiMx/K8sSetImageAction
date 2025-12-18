@@ -3,32 +3,44 @@ description: >
   Set Deployment Image
 
 inputs:
-  backend:
-    description: 'Server Addr'
+  server:
+    description: "Server Addr"
     required: true
+  skipTLSVerify:
+    description: "Skip TLS Verify"
+    required: false
   token:
-    description: 'Bearer Token'
+    description: "Bearer Token"
     required: true
-  cluster:
-    description: 'Cluster Name'
+  controller:
+    description: "Controller of Workload, default deployment"
     required: false
   namespace:
-    description: 'Namespace'
+    description: "Namespace"
     required: true
-  type:
-    description: 'Type of Workload'
-    required: false
   workload:
-    description: 'Workload Name'
+    description: "Workload Name"
     required: true
+
+  template:
+    description: "Template for Patching"
+    required: false
+
   container:
-    description: 'Deployment Container Index'
+    description: "Deployment Container Name"
     required: false
   image:
-    description: 'Target Image'
-    required: true
+    description: "Target Image"
+    required: false
+
+  maxPatchRetry:
+    description: "Max Retry, default 5"
+    required: false
   wait:
-    description: 'Waiting workload available'
+    description: "Waiting Workload Ready"
+    required: false
+  maxWaitDuration:
+    description: "Max Wait Duration, default 5m"
     required: false
 
 runs:

@@ -1,18 +1,121 @@
 import * as core from "@actions/core";
-import * as github from "@actions/github";
+import * as k8s from "@kubernetes/client-node";
 
-try {
-  // `who-to-greet` input defined in action metadata file
-  const nameToGreet = core.getInput("who-to-greet");
-  core.info(`Hello ${nameToGreet}!`);
+import ms, { StringValue } from "ms";
 
-  // Get the current time and set it as an output variable
-  const time = new Date().toTimeString();
-  core.setOutput("time", time);
+import { getStrategy } from "./utils/k8s";
 
-  // Get the JSON webhook payload for the event that triggered the workflow
-  const payload = JSON.stringify(github.context.payload, undefined, 2);
-  core.info(`The event payload: ${payload}`);
-} catch (error) {
-  core.setFailed(`${error}`);
+async function main() {
+  try {
+    const server = core.getInput("server", { required: true });
+    const skipTLSVerify = core.getInput("skipTLSVerify");
+    const token = core.getInput("token", { required: true });
+
+    const controller =
+      core.getInput("controller").toLowerCase() || "deployment";
+    const namespace = core.getInput("namespace", { required: true });
+    const workload = core.getInput("workload", { required: true });
+    const templateInput = core.getInput("templateInput");
+
+    const container = core.getInput("container");
+    const image = core.getInput("image");
+
+    const maxPatchRetry = parseInt(core.getInput("maxPatchRetry") || "5") ?? 5;
+    const wait = core.getInput("wait");
+    const maxWaitDuration = core.getInput("maxWaitDuration") ?? "5m";
+
+    const maxWaitMs: number | undefined = ms(maxWaitDuration as StringValue);
+    if (!maxWaitMs) {
+      core.setFailed(`Invalid maxWaitDuration ${maxWaitDuration}`);
+      return;
+    }
+
+    if (!templateInput && (!container || !image)) {
+      core.setFailed("Must provide template or container and image");
+      return;
+    }
+
+    core.info(
+      `Setting image for ${controller} workload: ${workload} in namespace: ${namespace}`,
+    );
+
+    // Kubernetes configuration
+    const kc = new k8s.KubeConfig();
+    kc.loadFromClusterAndUser(
+      {
+        name: "server",
+        server: server,
+        skipTLSVerify: skipTLSVerify === "true",
+      },
+      {
+        name: "user",
+        token: token,
+      },
+    );
+
+    const strategy = getStrategy(kc, controller, namespace, workload);
+    if (!strategy) {
+      core.setFailed(`Unsupported controller ${controller}`);
+      return;
+    }
+
+    try {
+      const template =
+        templateInput || strategy.patchImageTemplate(container, image);
+
+      let count = 0;
+      while (true) {
+        try {
+          await strategy.patch(template);
+          break;
+        } catch (err) {
+          if (count < maxPatchRetry) {
+            core.error(`Patch workload failed: ${err}, retrying...`);
+            count++;
+          } else {
+            core.setFailed(`Patch workload failed: ${err}`);
+            return;
+          }
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+    } catch (err) {
+      core.setFailed(`Generate template failed: ${err}`);
+      return;
+    }
+
+    core.info(`Image updated successfully for workload: ${workload}`);
+
+    if (wait) {
+      core.info(`Waiting for workload ${workload} to be available...`);
+      if (controller === "cronjob") {
+        core.setFailed(`Waiting for cronjob is not supported`);
+        return;
+      }
+
+      const deadline = Date.now() + maxWaitMs;
+      while (true) {
+        if (Date.now() < deadline) {
+          try {
+            if (await strategy.isAvailable()) {
+              core.info("Workload is available");
+              break;
+            }
+            await new Promise((resolve) => setTimeout(resolve, 5000));
+            core.info(`Waiting for workload ${workload} to be available...`);
+          } catch (err) {}
+        } else {
+          core.setFailed(
+            `Timeout waiting for workload ${workload} to be available`,
+          );
+          return;
+        }
+      }
+    }
+  } catch (error) {
+    core.setFailed(`Action failed with error: ${error}`);
+  }
 }
+
+main();
