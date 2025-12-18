@@ -9,12 +9,14 @@ inputs:
   skipTLSVerify:
     description: "Skip TLS Verify"
     required: false
+    default: "false"
   token:
     description: "Bearer Token"
     required: true
   controller:
-    description: "Controller of Workload, default deployment"
+    description: "Controller of Workload"
     required: false
+    default: "deployment"
   namespace:
     description: "Namespace"
     required: true
@@ -25,23 +27,29 @@ inputs:
   template:
     description: "Template for Patching"
     required: false
+    default: ""
 
   container:
     description: "Deployment Container Name"
     required: false
+    default: "container-0"
   image:
     description: "Target Image"
     required: false
+    default: ""
 
   maxPatchRetry:
-    description: "Max Retry, default 5"
+    description: "Max Retry Times for Patching"
     required: false
+    default: "5"
   wait:
     description: "Waiting Workload Ready"
     required: false
+    default: "false"
   maxWaitDuration:
-    description: "Max Wait Duration, default 5m"
+    description: "Max Wait Duration"
     required: false
+    default: "5m"
 
 runs:
   using: node20

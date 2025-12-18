@@ -11,8 +11,7 @@ async function main() {
     const skipTLSVerify = core.getInput("skipTLSVerify");
     const token = core.getInput("token", { required: true });
 
-    const controller =
-      core.getInput("controller").toLowerCase() || "deployment";
+    const controller = core.getInput("controller").toLowerCase();
     const namespace = core.getInput("namespace", { required: true });
     const workload = core.getInput("workload", { required: true });
     const templateInput = core.getInput("templateInput");
@@ -20,9 +19,9 @@ async function main() {
     const container = core.getInput("container");
     const image = core.getInput("image");
 
-    const maxPatchRetry = parseInt(core.getInput("maxPatchRetry") || "5") ?? 5;
+    const maxPatchRetry = parseInt(core.getInput("maxPatchRetry")) ?? 5;
     const wait = core.getInput("wait");
-    const maxWaitDuration = core.getInput("maxWaitDuration") ?? "5m";
+    const maxWaitDuration = core.getInput("maxWaitDuration");
 
     const maxWaitMs: number | undefined = ms(maxWaitDuration as StringValue);
     if (!maxWaitMs) {
@@ -87,7 +86,7 @@ async function main() {
 
     core.info(`Image updated successfully for workload: ${workload}`);
 
-    if (wait) {
+    if (wait === "true") {
       core.info(`Waiting for workload ${workload} to be available...`);
       if (controller === "cronjob") {
         core.setFailed(`Waiting for cronjob is not supported`);
