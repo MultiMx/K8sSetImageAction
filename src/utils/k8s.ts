@@ -1,5 +1,46 @@
 import * as k8s from "@kubernetes/client-node";
 
+const shouldBypassProxy = (hostname: string, noProxy: string): boolean => {
+  const entries = noProxy.split(",").map((e) => e.trim()).filter(Boolean);
+  for (const entry of entries) {
+    if (entry === "*") return true;
+    // Exact match or suffix match (e.g. .example.com matches foo.example.com)
+    if (hostname === entry) return true;
+    if (hostname.endsWith(`.${entry}`)) return true;
+    // Entry with leading dot
+    if (entry.startsWith(".") && hostname.endsWith(entry)) return true;
+  }
+  return false;
+};
+
+export const getProxyUrl = (targetUrl: string): string | undefined => {
+  const parsed = new URL(targetUrl);
+  const isHttps = parsed.protocol === "https:";
+
+  const proxyUrl = isHttps
+    ? process.env.https_proxy || process.env.HTTPS_PROXY
+    : process.env.http_proxy || process.env.HTTP_PROXY;
+
+  if (!proxyUrl) return undefined;
+
+  const noProxy = process.env.no_proxy || process.env.NO_PROXY;
+  if (noProxy && shouldBypassProxy(parsed.hostname, noProxy)) {
+    return undefined;
+  }
+
+  return proxyUrl;
+};
+
+export const configureProxyForKubeConfig = (kc: k8s.KubeConfig): void => {
+  const cluster = kc.getCurrentCluster();
+  if (!cluster) return;
+
+  const proxyUrl = getProxyUrl(cluster.server);
+  if (proxyUrl) {
+    (cluster as { proxyUrl?: string }).proxyUrl = proxyUrl;
+  }
+};
+
 export const bodyPatchAppsImage = (container: string, image: string) => {
   return {
     spec: {

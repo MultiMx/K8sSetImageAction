@@ -3,7 +3,7 @@ import * as k8s from "@kubernetes/client-node";
 
 import ms, { StringValue } from "ms";
 
-import { getStrategy } from "./utils/k8s";
+import { configureProxyForKubeConfig, getStrategy } from "./utils/k8s";
 
 async function main() {
   try {
@@ -68,6 +68,8 @@ async function main() {
       core.setFailed(`Load kubeconfig failed: ${err}`);
       return;
     }
+
+    configureProxyForKubeConfig(kc);
 
     const strategy = getStrategy(kc, controller, namespace, workload);
     if (!strategy) {

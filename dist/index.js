@@ -114182,9 +114182,10 @@ const plugin = {
 // register plugins
 jsep.plugins.register(index, plugin);
 jsep.addUnaryOp('typeof');
+jsep.addUnaryOp('void');
 jsep.addLiteral('null', null);
 jsep.addLiteral('undefined', undefined);
-const BLOCKED_PROTO_PROPERTIES = new Set(['constructor', '__proto__', '__defineGetter__', '__defineSetter__']);
+const BLOCKED_PROTO_PROPERTIES = new Set(['constructor', '__proto__', '__defineGetter__', '__defineSetter__', '__lookupGetter__', '__lookupSetter__']);
 const SafeEval = {
   /**
    * @param {jsep.Expression} ast
@@ -114303,7 +114304,9 @@ const SafeEval = {
       '~': a => ~SafeEval.evalAst(a, subs),
       // eslint-disable-next-line no-implicit-coercion -- API
       '+': a => +SafeEval.evalAst(a, subs),
-      typeof: a => typeof SafeEval.evalAst(a, subs)
+      typeof: a => typeof SafeEval.evalAst(a, subs),
+      // eslint-disable-next-line no-void, sonarjs/void-use -- feature
+      void: a => void SafeEval.evalAst(a, subs)
     }[ast.operator](ast.argument);
     return result;
   },
@@ -114313,9 +114316,12 @@ const SafeEval = {
   evalCallExpression(ast, subs) {
     const args = ast.arguments.map(arg => SafeEval.evalAst(arg, subs));
     const func = SafeEval.evalAst(ast.callee, subs);
-    // if (func === Function) {
-    //     throw new Error('Function constructor is disabled');
-    // }
+    /* c8 ignore start  */
+    if (func === Function) {
+      // unreachable since BLOCKED_PROTO_PROPERTIES includes 'constructor'
+      throw new Error('Function constructor is disabled');
+    }
+    /* c8 ignore end  */
     return func(...args);
   },
   evalAssignmentExpression(ast, subs) {
@@ -166198,7 +166204,7 @@ class ObjectBatchV1Api {
 let USER_AGENT$1;
 if (typeof navigator === 'undefined' || !navigator.userAgent?.startsWith?.('Mozilla/5.0 ')) {
     const NAME = 'oauth4webapi';
-    const VERSION = 'v3.8.3';
+    const VERSION = 'v3.8.5';
     USER_AGENT$1 = `${NAME}/${VERSION}`;
 }
 function looseInstanceOf(input, expected) {
@@ -167052,7 +167058,7 @@ let headers$1;
 let USER_AGENT;
 if (typeof navigator === 'undefined' || !navigator.userAgent?.startsWith?.('Mozilla/5.0 ')) {
     const NAME = 'openid-client';
-    const VERSION = 'v6.8.1';
+    const VERSION = 'v6.8.2';
     USER_AGENT = `${NAME}/${VERSION}`;
     headers$1 = { 'user-agent': USER_AGENT };
 }
@@ -167193,7 +167199,7 @@ async function performDiscovery(server, options) {
             signal,
             headers: new Headers(headers$1),
         })
-        : (fetch)((() => {
+        : (options?.[customFetch] || fetch)((() => {
             checkProtocol(server, true);
             return server.href;
         })(), {
@@ -174371,6 +174377,7 @@ function requireConstants$2 () {
 
 	constants$2 = {
 	  BINARY_TYPES,
+	  CLOSE_TIMEOUT: 30000,
 	  EMPTY_BUFFER: Buffer.alloc(0),
 	  GUID: '258EAFA5-E914-47DA-95CA-C5AB0DC85B11',
 	  hasBlob,
@@ -177141,6 +177148,7 @@ function requireWebsocket () {
 
 	const {
 	  BINARY_TYPES,
+	  CLOSE_TIMEOUT,
 	  EMPTY_BUFFER,
 	  GUID,
 	  kForOnEventAttribute,
@@ -177155,7 +177163,6 @@ function requireWebsocket () {
 	const { format, parse } = requireExtension();
 	const { toBuffer } = requireBufferUtil();
 
-	const closeTimeout = 30 * 1000;
 	const kAborted = Symbol('kAborted');
 	const protocolVersions = [8, 13];
 	const readyStates = ['CONNECTING', 'OPEN', 'CLOSING', 'CLOSED'];
@@ -177211,6 +177218,7 @@ function requireWebsocket () {
 	      initAsClient(this, address, protocols, options);
 	    } else {
 	      this._autoPong = options.autoPong;
+	      this._closeTimeout = options.closeTimeout;
 	      this._isServer = true;
 	    }
 	  }
@@ -177752,6 +177760,8 @@ function requireWebsocket () {
 	 *     times in the same tick
 	 * @param {Boolean} [options.autoPong=true] Specifies whether or not to
 	 *     automatically send a pong in response to a ping
+	 * @param {Number} [options.closeTimeout=30000] Duration in milliseconds to wait
+	 *     for the closing handshake to finish after `websocket.close()` is called
 	 * @param {Function} [options.finishRequest] A function which can be used to
 	 *     customize the headers of each http request before it is sent
 	 * @param {Boolean} [options.followRedirects=false] Whether or not to follow
@@ -177778,6 +177788,7 @@ function requireWebsocket () {
 	  const opts = {
 	    allowSynchronousEvents: true,
 	    autoPong: true,
+	    closeTimeout: CLOSE_TIMEOUT,
 	    protocolVersion: protocolVersions[1],
 	    maxPayload: 100 * 1024 * 1024,
 	    skipUTF8Validation: false,
@@ -177796,6 +177807,7 @@ function requireWebsocket () {
 	  };
 
 	  websocket._autoPong = opts.autoPong;
+	  websocket._closeTimeout = opts.closeTimeout;
 
 	  if (!protocolVersions.includes(opts.protocolVersion)) {
 	    throw new RangeError(
@@ -178413,7 +178425,7 @@ function requireWebsocket () {
 	function setCloseTimer(websocket) {
 	  websocket._closeTimer = setTimeout(
 	    websocket._socket.destroy.bind(websocket._socket),
-	    closeTimeout
+	    websocket._closeTimeout
 	  );
 	}
 
@@ -178431,23 +178443,23 @@ function requireWebsocket () {
 
 	  websocket._readyState = WebSocket.CLOSING;
 
-	  let chunk;
-
 	  //
 	  // The close frame might not have been received or the `'end'` event emitted,
 	  // for example, if the socket was destroyed due to an error. Ensure that the
 	  // `receiver` stream is closed after writing any remaining buffered data to
 	  // it. If the readable side of the socket is in flowing mode then there is no
-	  // buffered data as everything has been already written and `readable.read()`
-	  // will return `null`. If instead, the socket is paused, any possible buffered
-	  // data will be read as a single chunk.
+	  // buffered data as everything has been already written. If instead, the
+	  // socket is paused, any possible buffered data will be read as a single
+	  // chunk.
 	  //
 	  if (
 	    !this._readableState.endEmitted &&
 	    !websocket._closeFrameReceived &&
 	    !websocket._receiver._writableState.errorEmitted &&
-	    (chunk = websocket._socket.read()) !== null
+	    this._readableState.length !== 0
 	  ) {
+	    const chunk = this.read(this._readableState.length);
+
 	    websocket._receiver.write(chunk);
 	  }
 
@@ -178770,7 +178782,7 @@ function requireWebsocketServer () {
 	const PerMessageDeflate = requirePermessageDeflate();
 	const subprotocol = requireSubprotocol();
 	const WebSocket = requireWebsocket();
-	const { GUID, kWebSocket } = requireConstants$2();
+	const { CLOSE_TIMEOUT, GUID, kWebSocket } = requireConstants$2();
 
 	const keyRegex = /^[+/0-9A-Za-z]{22}==$/;
 
@@ -178797,6 +178809,9 @@ function requireWebsocketServer () {
 	   *     pending connections
 	   * @param {Boolean} [options.clientTracking=true] Specifies whether or not to
 	   *     track clients
+	   * @param {Number} [options.closeTimeout=30000] Duration in milliseconds to
+	   *     wait for the closing handshake to finish after `websocket.close()` is
+	   *     called
 	   * @param {Function} [options.handleProtocols] A hook to handle protocols
 	   * @param {String} [options.host] The hostname where to bind the server
 	   * @param {Number} [options.maxPayload=104857600] The maximum allowed message
@@ -178826,6 +178841,7 @@ function requireWebsocketServer () {
 	      perMessageDeflate: false,
 	      handleProtocols: null,
 	      clientTracking: true,
+	      closeTimeout: CLOSE_TIMEOUT,
 	      verifyClient: null,
 	      noServer: false,
 	      backlog: null, // use default (511 as implemented in net.js)
@@ -179905,19 +179921,19 @@ function requirePassThroughDecoder () {
 	const b4a = requireB4a();
 
 	passThroughDecoder = class PassThroughDecoder {
-	  constructor (encoding) {
+	  constructor(encoding) {
 	    this.encoding = encoding;
 	  }
 
-	  get remaining () {
+	  get remaining() {
 	    return 0
 	  }
 
-	  decode (tail) {
-	    return b4a.toString(tail, this.encoding)
+	  decode(data) {
+	    return b4a.toString(data, this.encoding)
 	  }
 
-	  flush () {
+	  flush() {
 	    return ''
 	  }
 	};
@@ -179936,70 +179952,91 @@ function requireUtf8Decoder () {
 	 * https://encoding.spec.whatwg.org/#utf-8-decoder
 	 */
 	utf8Decoder = class UTF8Decoder {
-	  constructor () {
-	    this.codePoint = 0;
-	    this.bytesSeen = 0;
-	    this.bytesNeeded = 0;
-	    this.lowerBoundary = 0x80;
-	    this.upperBoundary = 0xbf;
+	  constructor() {
+	    this._reset();
 	  }
 
-	  get remaining () {
+	  get remaining() {
 	    return this.bytesSeen
 	  }
 
-	  decode (data) {
-	    // If we have a fast path, just sniff if the last part is a boundary
-	    if (this.bytesNeeded === 0) {
-	      let isBoundary = true;
+	  decode(data) {
+	    if (data.byteLength === 0) return ''
 
-	      for (let i = Math.max(0, data.byteLength - 4), n = data.byteLength; i < n && isBoundary; i++) {
-	        isBoundary = data[i] <= 0x7f;
-	      }
-
-	      if (isBoundary) return b4a.toString(data, 'utf8')
+	    if (this.bytesNeeded === 0 && trailingIncomplete(data, 0) === 0) {
+	      this.bytesSeen = trailingBytesSeen(data);
+	      return b4a.toString(data, 'utf8')
 	    }
 
 	    let result = '';
+	    let start = 0;
 
-	    for (let i = 0, n = data.byteLength; i < n; i++) {
+	    if (this.bytesNeeded > 0) {
+	      while (start < data.byteLength) {
+	        const byte = data[start];
+
+	        if (byte < this.lowerBoundary || byte > this.upperBoundary) {
+	          result += '\ufffd';
+	          this._reset();
+	          break
+	        }
+
+	        this.lowerBoundary = 0x80;
+	        this.upperBoundary = 0xbf;
+	        this.codePoint = (this.codePoint << 6) | (byte & 0x3f);
+	        this.bytesSeen++;
+	        start++;
+
+	        if (this.bytesSeen === this.bytesNeeded) {
+	          result += String.fromCodePoint(this.codePoint);
+	          this._reset();
+	          break
+	        }
+	      }
+
+	      if (this.bytesNeeded > 0) return result
+	    }
+
+	    const trailing = trailingIncomplete(data, start);
+	    const end = data.byteLength - trailing;
+
+	    if (end > start) result += b4a.toString(data, 'utf8', start, end);
+
+	    for (let i = end; i < data.byteLength; i++) {
 	      const byte = data[i];
 
 	      if (this.bytesNeeded === 0) {
 	        if (byte <= 0x7f) {
+	          this.bytesSeen = 0;
 	          result += String.fromCharCode(byte);
+	        } else if (byte >= 0xc2 && byte <= 0xdf) {
+	          this.bytesNeeded = 2;
+	          this.bytesSeen = 1;
+	          this.codePoint = byte & 0x1f;
+	        } else if (byte >= 0xe0 && byte <= 0xef) {
+	          if (byte === 0xe0) this.lowerBoundary = 0xa0;
+	          else if (byte === 0xed) this.upperBoundary = 0x9f;
+	          this.bytesNeeded = 3;
+	          this.bytesSeen = 1;
+	          this.codePoint = byte & 0xf;
+	        } else if (byte >= 0xf0 && byte <= 0xf4) {
+	          if (byte === 0xf0) this.lowerBoundary = 0x90;
+	          else if (byte === 0xf4) this.upperBoundary = 0x8f;
+	          this.bytesNeeded = 4;
+	          this.bytesSeen = 1;
+	          this.codePoint = byte & 0x7;
 	        } else {
 	          this.bytesSeen = 1;
-
-	          if (byte >= 0xc2 && byte <= 0xdf) {
-	            this.bytesNeeded = 2;
-	            this.codePoint = byte & 0x1f;
-	          } else if (byte >= 0xe0 && byte <= 0xef) {
-	            if (byte === 0xe0) this.lowerBoundary = 0xa0;
-	            else if (byte === 0xed) this.upperBoundary = 0x9f;
-	            this.bytesNeeded = 3;
-	            this.codePoint = byte & 0xf;
-	          } else if (byte >= 0xf0 && byte <= 0xf4) {
-	            if (byte === 0xf0) this.lowerBoundary = 0x90;
-	            if (byte === 0xf4) this.upperBoundary = 0x8f;
-	            this.bytesNeeded = 4;
-	            this.codePoint = byte & 0x7;
-	          } else {
-	            result += '\ufffd';
-	          }
+	          result += '\ufffd';
 	        }
 
 	        continue
 	      }
 
 	      if (byte < this.lowerBoundary || byte > this.upperBoundary) {
-	        this.codePoint = 0;
-	        this.bytesNeeded = 0;
-	        this.bytesSeen = 0;
-	        this.lowerBoundary = 0x80;
-	        this.upperBoundary = 0xbf;
-
 	        result += '\ufffd';
+	        i--;
+	        this._reset();
 
 	        continue
 	      }
@@ -180010,30 +180047,90 @@ function requireUtf8Decoder () {
 	      this.codePoint = (this.codePoint << 6) | (byte & 0x3f);
 	      this.bytesSeen++;
 
-	      if (this.bytesSeen !== this.bytesNeeded) continue
-
-	      result += String.fromCodePoint(this.codePoint);
-
-	      this.codePoint = 0;
-	      this.bytesNeeded = 0;
-	      this.bytesSeen = 0;
+	      if (this.bytesSeen === this.bytesNeeded) {
+	        result += String.fromCodePoint(this.codePoint);
+	        this._reset();
+	      }
 	    }
 
 	    return result
 	  }
 
-	  flush () {
+	  flush() {
 	    const result = this.bytesNeeded > 0 ? '\ufffd' : '';
+	    this._reset();
+	    return result
+	  }
 
+	  _reset() {
 	    this.codePoint = 0;
 	    this.bytesNeeded = 0;
 	    this.bytesSeen = 0;
 	    this.lowerBoundary = 0x80;
 	    this.upperBoundary = 0xbf;
-
-	    return result
 	  }
 	};
+
+	function trailingIncomplete(data, start) {
+	  const len = data.byteLength;
+	  if (len <= start) return 0
+
+	  const limit = Math.max(start, len - 4);
+
+	  let i = len - 1;
+	  while (i > limit && (data[i] & 0xc0) === 0x80) i--;
+
+	  if (i < start) return 0
+
+	  const byte = data[i];
+
+	  let needed;
+	  if (byte <= 0x7f) return 0
+	  if (byte >= 0xc2 && byte <= 0xdf) needed = 2;
+	  else if (byte >= 0xe0 && byte <= 0xef) needed = 3;
+	  else if (byte >= 0xf0 && byte <= 0xf4) needed = 4;
+	  else return 0
+
+	  const available = len - i;
+	  return available < needed ? available : 0
+	}
+
+	function trailingBytesSeen(data) {
+	  const len = data.byteLength;
+	  if (len === 0) return 0
+
+	  const last = data[len - 1];
+
+	  if (last <= 0x7f) return 0
+	  if ((last & 0xc0) !== 0x80) return 1
+
+	  const limit = Math.max(0, len - 4);
+
+	  let i = len - 2;
+	  while (i >= limit && (data[i] & 0xc0) === 0x80) i--;
+
+	  if (i < 0) return 1
+
+	  const first = data[i];
+
+	  let needed;
+	  if (first >= 0xc2 && first <= 0xdf) needed = 2;
+	  else if (first >= 0xe0 && first <= 0xef) needed = 3;
+	  else if (first >= 0xf0 && first <= 0xf4) needed = 4;
+	  else return 1
+
+	  if (len - i !== needed) return 1
+
+	  if (needed >= 3) {
+	    const second = data[i + 1];
+	    if (first === 0xe0 && second < 0xa0) return 1
+	    if (first === 0xed && second > 0x9f) return 1
+	    if (first === 0xf0 && second < 0x90) return 1
+	    if (first === 0xf4 && second > 0x8f) return 1
+	  }
+
+	  return 0
+	}
 	return utf8Decoder;
 }
 
@@ -180047,7 +180144,7 @@ function requireTextDecoder () {
 	const UTF8Decoder = requireUtf8Decoder();
 
 	textDecoder = class TextDecoder {
-	  constructor (encoding = 'utf8') {
+	  constructor(encoding = 'utf8') {
 	    this.encoding = normalizeEncoding(encoding);
 
 	    switch (this.encoding) {
@@ -180062,21 +180159,21 @@ function requireTextDecoder () {
 	    }
 	  }
 
-	  get remaining () {
+	  get remaining() {
 	    return this.decoder.remaining
 	  }
 
-	  push (data) {
+	  push(data) {
 	    if (typeof data === 'string') return data
 	    return this.decoder.decode(data)
 	  }
 
 	  // For Node.js compatibility
-	  write (data) {
+	  write(data) {
 	    return this.push(data)
 	  }
 
-	  end (data) {
+	  end(data) {
 	    let result = '';
 	    if (data) result = this.push(data);
 	    result += this.decoder.flush();
@@ -180084,7 +180181,7 @@ function requireTextDecoder () {
 	  }
 	};
 
-	function normalizeEncoding (encoding) {
+	function normalizeEncoding(encoding) {
 	  encoding = encoding.toLowerCase();
 
 	  switch (encoding) {
@@ -180106,7 +180203,8 @@ function requireTextDecoder () {
 	    default:
 	      throw new Error('Unknown encoding: ' + encoding)
 	  }
-	}	return textDecoder;
+	}
+	return textDecoder;
 }
 
 var streamx;
@@ -183069,8 +183167,15 @@ requireTarFs();
  * and https://kubernetes.io/docs/reference/using-api/server-side-apply/#api-implementation
  */
 const PatchStrategy = {
+    /** Diff-like JSON format. */
+    JsonPatch: 'application/json-patch+json',
+    /** Simple merge. */
+    MergePatch: 'application/merge-patch+json',
     /** Merge with different strategies depending on field metadata. */
-    StrategicMergePatch: 'application/strategic-merge-patch+json'};
+    StrategicMergePatch: 'application/strategic-merge-patch+json',
+    /** Server-Side Apply */
+    ServerSideApply: 'application/apply-patch+yaml',
+};
 
 function setHeaderMiddleware(key, value) {
     return {
@@ -183097,6 +183202,45 @@ function setHeaderOptions(key, value, opt) {
 var msExports = requireMs();
 var ms = /*@__PURE__*/getDefaultExportFromCjs(msExports);
 
+const shouldBypassProxy = (hostname, noProxy) => {
+    const entries = noProxy.split(",").map((e) => e.trim()).filter(Boolean);
+    for (const entry of entries) {
+        if (entry === "*")
+            return true;
+        // Exact match or suffix match (e.g. .example.com matches foo.example.com)
+        if (hostname === entry)
+            return true;
+        if (hostname.endsWith(`.${entry}`))
+            return true;
+        // Entry with leading dot
+        if (entry.startsWith(".") && hostname.endsWith(entry))
+            return true;
+    }
+    return false;
+};
+const getProxyUrl = (targetUrl) => {
+    const parsed = new URL(targetUrl);
+    const isHttps = parsed.protocol === "https:";
+    const proxyUrl = isHttps
+        ? process.env.https_proxy || process.env.HTTPS_PROXY
+        : process.env.http_proxy || process.env.HTTP_PROXY;
+    if (!proxyUrl)
+        return undefined;
+    const noProxy = process.env.no_proxy || process.env.NO_PROXY;
+    if (noProxy && shouldBypassProxy(parsed.hostname, noProxy)) {
+        return undefined;
+    }
+    return proxyUrl;
+};
+const configureProxyForKubeConfig = (kc) => {
+    const cluster = kc.getCurrentCluster();
+    if (!cluster)
+        return;
+    const proxyUrl = getProxyUrl(cluster.server);
+    if (proxyUrl) {
+        cluster.proxyUrl = proxyUrl;
+    }
+};
 const bodyPatchAppsImage = (container, image) => {
     return {
         spec: {
@@ -183214,13 +183358,13 @@ function main() {
             const bodyInput = coreExports.getInput("body");
             const container = coreExports.getInput("container");
             const image = coreExports.getInput("image");
+            const maxPatchRetry = (_a = parseInt(coreExports.getInput("maxPatchRetry"))) !== null && _a !== void 0 ? _a : 5;
+            const wait = coreExports.getInput("wait");
+            const maxWaitDuration = coreExports.getInput("maxWaitDuration");
             if (!bodyInput && (!container || !image)) {
                 coreExports.setFailed("Must provide container and image or body");
                 return;
             }
-            const maxPatchRetry = (_a = parseInt(coreExports.getInput("maxPatchRetry"))) !== null && _a !== void 0 ? _a : 5;
-            const wait = coreExports.getInput("wait");
-            const maxWaitDuration = coreExports.getInput("maxWaitDuration");
             const maxWaitMs = ms(maxWaitDuration);
             if (!maxWaitMs) {
                 coreExports.setFailed(`Invalid maxWaitDuration ${maxWaitDuration}`);
@@ -183254,6 +183398,7 @@ function main() {
                 coreExports.setFailed(`Load kubeconfig failed: ${err}`);
                 return;
             }
+            configureProxyForKubeConfig(kc);
             const strategy = getStrategy(kc, controller, namespace, workload);
             if (!strategy) {
                 coreExports.setFailed(`Unsupported controller ${controller}`);
