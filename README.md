@@ -8,7 +8,7 @@ Update Rancher Deployment Image Address Action
 
 ```yaml
 - name: Update Workload
-  uses: MultiMx/K8sSetImageAction@v0.7
+  uses: MultiMx/K8sSetImageAction@v0.8
   with:
     server: "https://my-cluster"
     token: "token-aaa:bbb"
@@ -21,7 +21,7 @@ Update Rancher Deployment Image Address Action
 
 ```yaml
 - name: Update Workload
-  uses: MultiMx/K8sSetImageAction@v0.7
+  uses: MultiMx/K8sSetImageAction@v0.8
   with:
     server: "https://my-cluster"
     token: "token-aaa:bbb"
