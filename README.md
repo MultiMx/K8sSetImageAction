@@ -2,13 +2,17 @@
 
 Update Rancher Deployment Image Address Action
 
+## Requirements
+
+Version `v0.9` and later runs on the GitHub Actions Node.js 24 runtime.
+
 ## Usage
 
 ### Patch Deployment with Token
 
 ```yaml
 - name: Update Workload
-  uses: MultiMx/K8sSetImageAction@v0.8
+  uses: MultiMx/K8sSetImageAction@v0.9
   with:
     server: "https://my-cluster"
     token: "token-aaa:bbb"
@@ -21,7 +25,7 @@ Update Rancher Deployment Image Address Action
 
 ```yaml
 - name: Update Workload
-  uses: MultiMx/K8sSetImageAction@v0.8
+  uses: MultiMx/K8sSetImageAction@v0.9
   with:
     server: "https://my-cluster"
     token: "token-aaa:bbb"
